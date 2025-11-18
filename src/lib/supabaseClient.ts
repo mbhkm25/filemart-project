@@ -1,6 +1,56 @@
-import { createClient } from '@supabase/supabase-js';
+'use client'
 
-const supabaseUrl = "https://sbpxwwidwkyvbydnmhff.supabase.co";  
-const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNicHh3d2lkd2t5dmJ5ZG5taGZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMzMDI5MzQsImV4cCI6MjA3ODg3ODkzNH0.sZm-kXW9jpEPSTPmZcCeEN2m2T1rRxxlnxZUAFtSFtw";
+import { createClient } from '@supabase/supabase-js'
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+/**
+ * البيئة:
+ * NEXT_PUBLIC_SUPABASE_URL=
+ * NEXT_PUBLIC_SUPABASE_ANON_KEY=
+ *
+ * ملاحظات:
+ * - يجب أن تأتي المفاتيح من .env.local (أو بيئة الإنتاج Vercel)
+ * - createClient يمكن استخدامه في frontend & server components
+ */
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Supabase environment variables are missing. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local'
+  )
+}
+
+/**
+ * عميل Supabase جاهز للتعامل مع:
+ * - Auth
+ * - Database (Postgres)
+ * - Storage
+ * - Edge Functions
+ */
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+/**
+ * دوال إضافية تجهيزاً لرفع الصور:
+ * يقوم برفع الصور إلى Storage داخل bucket باسم "products"
+ */
+export async function uploadProductImage(
+  file: File,
+  path: string
+): Promise<string | null> {
+  const { data, error } = await supabase.storage
+    .from('products')
+    .upload(path, file, { cacheControl: '3600', upsert: false })
+
+  if (error) {
+    console.error('Storage upload error:', error)
+    return null
+  }
+
+  // جلب رابط التحميل العام
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from('products').getPublicUrl(path)
+
+  return publicUrl
+}
